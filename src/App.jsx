@@ -176,7 +176,7 @@ function App() {
     };
 
     const filteredTasks = tasks.filter(task => 
-        task.task.toLowerCase().includes(searchTerm.toLowerCase())
+        typeof task?.task === 'string' && task.task.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     // Get user initial for profile picture
@@ -484,7 +484,7 @@ function App() {
             </main>
 
             <footer className="app-footer">
-                <p>© {new Date().getFullYear()} dineshkarthickv TaskMaster. All rights reserved.</p>
+                <p>© {new Date().getFullYear()} TaskMaster. All rights reserved.</p>
             </footer>
         </div>
     );

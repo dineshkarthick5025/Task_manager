@@ -65,7 +65,7 @@ export const logout = () => {
 export const addTask = async (userId, task) => {
   await addDoc(collection(db, "tasks"), {
     userId,
-    task,
+    task: String(task),
     createdAt: new Date()
   });
 };
@@ -85,9 +85,9 @@ export const deleteTask = async (taskId) => {
 };
 
 // Add this new function for updating tasks
-export const updateTask = async (taskId, newTaskText) => {
+export const updateTask = async (taskId, newData) => {
   await updateDoc(doc(db, "tasks", taskId), {
-    task: newTaskText,
+    task: String(newData.task),
     updatedAt: new Date()
   });
 };
