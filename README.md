@@ -1,12 +1,21 @@
-# React + Vite
+# Task Master
+# explore now:[https://task-manager-bice-zeta-34.vercel.app/]
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A simple yet powerful task management application to help you organize your daily activities and boost productivity.
 
-Currently, two official plugins are available:
+#Features
+📝 Create, edit, and delete tasks
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+✅ Mark tasks as complete
 
-## Expanding the ESLint configuration
+🗂️ Categorize tasks by projects or labels
 
-If you are developing a production application, we recommend using TypeScript and enable type-aware lint rules. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+📅 Set due dates and reminders
+
+🔍 Search and filter tasks
+
+📊 Progress tracking and statistics
+
+🌙 Dark/Light mode support
+
+📱 Responsive design (works on desktop and mobile)
