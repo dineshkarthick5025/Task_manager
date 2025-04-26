@@ -20,7 +20,8 @@ import {
   getDocs, 
   deleteDoc, 
   doc,
-  updateDoc
+  updateDoc,
+  onSnapshot
 } from "firebase/firestore";
 
 // Your Firebase configuration
@@ -72,12 +73,15 @@ export const addTask = async (userId, task) => {
 
 export const getTasks = async (userId, setTasks) => {
   const q = query(collection(db, "tasks"), where("userId", "==", userId));
-  const querySnapshot = await getDocs(q);
-  const tasks = [];
-  querySnapshot.forEach((doc) => {
-    tasks.push({ id: doc.id, ...doc.data() });
+  
+  // Return the unsubscribe function
+  return onSnapshot(q, (querySnapshot) => {
+    const tasks = [];
+    querySnapshot.forEach((doc) => {
+      tasks.push({ id: doc.id, ...doc.data() });
+    });
+    setTasks(tasks);
   });
-  setTasks(tasks);
 };
 
 export const deleteTask = async (taskId) => {

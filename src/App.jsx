@@ -23,15 +23,19 @@ function App() {
 
     // Listen for Auth changes
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser);
             if (currentUser) {
-                fetchTasks(currentUser.uid);
+                // Start listening to tasks
+                const unsubscribeTasks = getTasks(currentUser.uid, setTasks);
+                return () => {
+                    unsubscribeTasks();
+                };
             } else {
                 setTasks([]);
             }
         });
-        return () => unsubscribe();
+        return () => unsubscribeAuth();
     }, []);
 
     const fetchTasks = async (userId) => {
@@ -126,6 +130,8 @@ function App() {
         try {
             await addTask(user.uid, task);
             setTask("");
+            // Refresh tasks list
+            await fetchTasks(user.uid);
             toast.success("Task added successfully!");
         } catch (error) {
             toast.error("Failed to add task: " + error.message);
@@ -135,6 +141,8 @@ function App() {
     const handleDeleteTask = async (id) => {
         try {
             await deleteTask(id);
+            // Refresh tasks list
+            await fetchTasks(user.uid);
             toast.success("Task deleted successfully!");
         } catch (error) {
             toast.error("Failed to delete task: " + error.message);
@@ -159,6 +167,8 @@ function App() {
         try {
             await updateTask(taskId, { task: editedTaskText });
             setEditingTaskId(null);
+            // Refresh tasks list
+            await fetchTasks(user.uid);
             toast.success("Task updated successfully!");
         } catch (error) {
             toast.error("Failed to update task: " + error.message);
