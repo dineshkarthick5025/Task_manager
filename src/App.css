@@ -984,3 +984,64 @@ body {
 .test-voice-btn:hover {
   background: var(--primary-color-dark);
 }
+
+/* Add/modify these styles */
+.task-input-container {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+    .task-input-container {
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+
+    .task-input-container input[type="date"],
+    .task-input-container input[type="time"] {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px; /* Larger font size for better touch targets */
+        min-height: 44px; /* Minimum touch target size */
+    }
+
+    /* Fix for date/time input text visibility on mobile */
+    .task-input-container input[type="date"]::-webkit-datetime-edit {
+        padding: 0;
+        color: var(--dark-color);
+    }
+
+    .task-input-container input[type="time"]::-webkit-datetime-edit {
+        padding: 0;
+        color: var(--dark-color);
+    }
+
+    /* Fix for date/time picker icon */
+    .task-input-container input[type="date"]::-webkit-calendar-picker-indicator,
+    .task-input-container input[type="time"]::-webkit-calendar-picker-indicator {
+        margin-left: auto;
+        padding: 8px;
+    }
+
+    /* Style for edit mode inputs */
+    .edit-task input[type="date"],
+    .edit-task input[type="time"] {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        min-height: 44px;
+    }
+}
+
+/* Add specific styles for iOS devices */
+@supports (-webkit-touch-callout: none) {
+    .task-input-container input[type="date"],
+    .task-input-container input[type="time"],
+    .edit-task input[type="date"],
+    .edit-task input[type="time"] {
+        -webkit-appearance: none;
+        appearance: none;
+        padding-right: 24px; /* Space for the calendar icon */
+    }
+}
