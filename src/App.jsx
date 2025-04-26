@@ -5,7 +5,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { FaGoogle, FaSignOutAlt, FaPlus, FaTrash, FaEdit, FaCheck, FaTimes, FaUser, FaSearch, FaArrowLeft, FaClock, FaCalendar } from "react-icons/fa";
-import { requestNotificationPermission, sendNotification, checkTaskDeadlines } from "./services/notificationService";
+import { requestNotificationPermission, sendNotification, checkTaskDeadlines, setupFCMListener } from "./services/notificationService";
 
 function App() {
     const [user, setUser] = useState(null);

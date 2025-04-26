@@ -23,6 +23,7 @@ import {
   updateDoc,
   onSnapshot
 } from "firebase/firestore";
+import { getMessaging } from "firebase/messaging";
 
 // Your Firebase configuration
 const firebaseConfig = {
@@ -39,6 +40,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const messaging = getMessaging(app);
 
 // Auth functions
 export const signUp = (email, password) => {
@@ -61,6 +63,9 @@ export const resetPassword = (email) => {
 export const logout = () => {
   return signOut(auth);
 };
+
+// Export Firebase instances
+export { app, auth, messaging, db };
 
 // Firestore functions
 export const addTask = async (userId, taskData) => {
@@ -112,8 +117,6 @@ export const updateTask = async (taskId, newData) => {
   });
 };
 
-export { auth };
-
 // Add notification preferences to user settings
 export const updateUserNotificationSettings = async (userId, settings) => {
   const userRef = doc(db, "users", userId);
@@ -124,4 +127,12 @@ export const getUserNotificationSettings = async (userId) => {
   const userRef = doc(db, "users", userId);
   const userDoc = await getDoc(userRef);
   return userDoc.exists() ? userDoc.data().notificationSettings : null;
+};
+
+// Add a function to save FCM tokens to user profile
+export const saveFCMToken = async (userId, token) => {
+  const userRef = doc(db, "users", userId);
+  await updateDoc(userRef, {
+    fcmTokens: arrayUnion(token)
+  });
 };
