@@ -398,13 +398,71 @@ body {
   animation: fadeIn 0.6s ease;
 }
 
-.task-input-container input {
+.input-group {
+  position: relative;
   flex: 1;
+}
+
+.input-group input {
+  width: 100%;
   padding: 0.8rem 1.2rem;
   border: 1px solid #ddd;
-  border-radius: 50px;
+  border-radius: 8px;
   font-size: 1rem;
-  transition: var(--transition);
+  transition: all 0.3s ease;
+}
+
+.input-group input:required {
+  border-left: 3px solid var(--primary-color);
+}
+
+.input-group input:invalid {
+  border-left: 3px solid var(--danger-color);
+}
+
+.required-indicator {
+  color: var(--danger-color);
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 1.2rem;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .task-input-container {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .input-group {
+    width: 100%;
+  }
+
+  .input-group input[type="date"],
+  .input-group input[type="time"] {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  .required-indicator {
+    top: -12px;
+    right: -4px;
+  }
+}
+
+/* Add visual feedback for focus state */
+.input-group input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.2);
+}
+
+/* Style for placeholder text */
+.input-group input::placeholder {
+  color: #999;
 }
 
 .task-input-container input:focus {

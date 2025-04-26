@@ -199,10 +199,20 @@ function App() {
 
     // Task Handlers
     const handleAddTask = async () => {
+        // Check all required fields
         if (taskInput.task.trim() === "") {
-            toast.warning("Please enter a task");
+            toast.warning("Please enter a task description");
             return;
         }
+        if (!taskInput.dueDate) {
+            toast.warning("Please select a due date");
+            return;
+        }
+        if (!taskInput.dueTime) {
+            toast.warning("Please select a due time");
+            return;
+        }
+
         try {
             await addTask(user.uid, taskInput);
             setTaskInput({ task: "", dueDate: "", dueTime: "" });
@@ -623,22 +633,34 @@ function App() {
                         </div>
 
                         <div className="task-input-container">
-                            <input 
-                                type="text" 
-                                value={taskInput.task}
-                                onChange={(e) => setTaskInput({...taskInput, task: e.target.value})}
-                                placeholder="Enter a new task..." 
-                            />
-                            <input 
-                                type="date"
-                                value={taskInput.dueDate}
-                                onChange={(e) => setTaskInput({...taskInput, dueDate: e.target.value})}
-                            />
-                            <input 
-                                type="time"
-                                value={taskInput.dueTime}
-                                onChange={(e) => setTaskInput({...taskInput, dueTime: e.target.value})}
-                            />
+                            <div className="input-group">
+                                <input 
+                                    type="text" 
+                                    value={taskInput.task}
+                                    onChange={(e) => setTaskInput({...taskInput, task: e.target.value})}
+                                    placeholder="Enter a new task *" 
+                                    required
+                                />
+                                <span className="required-indicator">*</span>
+                            </div>
+                            <div className="input-group">
+                                <input 
+                                    type="date"
+                                    value={taskInput.dueDate}
+                                    onChange={(e) => setTaskInput({...taskInput, dueDate: e.target.value})}
+                                    required
+                                />
+                                <span className="required-indicator">*</span>
+                            </div>
+                            <div className="input-group">
+                                <input 
+                                    type="time"
+                                    value={taskInput.dueTime}
+                                    onChange={(e) => setTaskInput({...taskInput, dueTime: e.target.value})}
+                                    required
+                                />
+                                <span className="required-indicator">*</span>
+                            </div>
                             <button onClick={handleAddTask} disabled={loading}>
                                 <FaPlus /> Add
                             </button>
