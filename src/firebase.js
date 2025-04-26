@@ -63,18 +63,33 @@ export const logout = () => {
 };
 
 // Firestore functions
-export const addTask = async (userId, task) => {
+export const addTask = async (userId, taskData) => {
   await addDoc(collection(db, "tasks"), {
     userId,
-    task: String(task),
-    createdAt: new Date()
+    task: String(taskData.task),
+    dueDate: taskData.dueDate,
+    dueTime: taskData.dueTime,
+    status: 'pending',
+    notified: {
+      hour: false,
+      thirtyMin: false,
+      overdue: false
+    },
+    createdAt: new Date(),
   });
 };
 
 export const getTasks = async (userId, setTasks) => {
-  const q = query(collection(db, "tasks"), where("userId", "==", userId));
+  if (!userId) {
+    setTasks([]);
+    return;
+  }
   
-  // Return the unsubscribe function
+  const q = query(
+    collection(db, "tasks"), 
+    where("userId", "==", userId)
+  );
+  
   return onSnapshot(q, (querySnapshot) => {
     const tasks = [];
     querySnapshot.forEach((doc) => {
@@ -88,12 +103,25 @@ export const deleteTask = async (taskId) => {
   await deleteDoc(doc(db, "tasks", taskId));
 };
 
-// Add this new function for updating tasks
 export const updateTask = async (taskId, newData) => {
   await updateDoc(doc(db, "tasks", taskId), {
     task: String(newData.task),
+    dueDate: newData.dueDate,
+    dueTime: newData.dueTime,
     updatedAt: new Date()
   });
 };
 
 export { auth };
+
+// Add notification preferences to user settings
+export const updateUserNotificationSettings = async (userId, settings) => {
+  const userRef = doc(db, "users", userId);
+  await setDoc(userRef, { notificationSettings: settings }, { merge: true });
+};
+
+export const getUserNotificationSettings = async (userId) => {
+  const userRef = doc(db, "users", userId);
+  const userDoc = await getDoc(userRef);
+  return userDoc.exists() ? userDoc.data().notificationSettings : null;
+};
