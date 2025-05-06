@@ -9,20 +9,21 @@ import {
   GoogleAuthProvider, 
   signInWithPopup, 
   sendPasswordResetEmail,
-  signOut
+  signOut,
+  updateProfile
 } from "firebase/auth";
 import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  query, 
-  where, 
-  getDocs, 
-  deleteDoc, 
-  doc,
-  updateDoc,
-  onSnapshot
-} from "firebase/firestore";
+  getDatabase, 
+  ref, 
+  set, 
+  push, 
+  onValue, 
+  remove, 
+  update,
+  query as dbQuery,
+  orderByChild,
+  equalTo
+} from "firebase/database";
 import { getMessaging } from "firebase/messaging";
 
 // Your Firebase configuration
@@ -33,18 +34,32 @@ const firebaseConfig = {
   storageBucket: "todoapp-b1322.firebasestorage.app",
   messagingSenderId: "224387757120",
   appId: "1:224387757120:web:7d4c7b93849af421e45ba5",
-  measurementId: "G-F1CVF6VE98"
+  measurementId: "G-F1CVF6VE98",
+  databaseURL: "https://todoapp-b1322-default-rtdb.firebaseio.com" // Add your database URL here
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = getDatabase(app);
 const messaging = getMessaging(app);
 
 // Auth functions
-export const signUp = (email, password) => {
-  return createUserWithEmailAndPassword(auth, email, password);
+export const signUp = async (email, password, name) => {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    
+    // Update the user profile with the name
+    if (name) {
+      await updateProfile(userCredential.user, {
+        displayName: name
+      });
+    }
+    
+    return userCredential;
+  } catch (error) {
+    return { error: error.message };
+  }
 };
 
 export const signIn = (email, password) => {
@@ -67,20 +82,25 @@ export const logout = () => {
 // Export Firebase instances
 export { app, auth, messaging, db };
 
-// Firestore functions
+// Realtime Database functions
 export const addTask = async (userId, taskData) => {
-  await addDoc(collection(db, "tasks"), {
+  const tasksRef = ref(db, 'tasks');
+  const newTaskRef = push(tasksRef);
+  
+  await set(newTaskRef, {
     userId,
     task: String(taskData.task),
     dueDate: taskData.dueDate,
     dueTime: taskData.dueTime,
+    priority: taskData.priority || 'medium',
+    category: taskData.category || 'personal',
     status: 'pending',
     notified: {
       hour: false,
       thirtyMin: false,
       overdue: false
     },
-    createdAt: new Date(),
+    createdAt: new Date().toISOString(),
   });
 };
 
@@ -90,49 +110,57 @@ export const getTasks = async (userId, setTasks) => {
     return;
   }
   
-  const q = query(
-    collection(db, "tasks"), 
-    where("userId", "==", userId)
-  );
+  const tasksRef = ref(db, 'tasks');
+  const userTasksQuery = dbQuery(tasksRef, orderByChild('userId'), equalTo(userId));
   
-  return onSnapshot(q, (querySnapshot) => {
+  const unsubscribe = onValue(userTasksQuery, (snapshot) => {
     const tasks = [];
-    querySnapshot.forEach((doc) => {
-      tasks.push({ id: doc.id, ...doc.data() });
+    snapshot.forEach((childSnapshot) => {
+      tasks.push({
+        id: childSnapshot.key,
+        ...childSnapshot.val()
+      });
     });
     setTasks(tasks);
   });
+  
+  return unsubscribe;
 };
 
 export const deleteTask = async (taskId) => {
-  await deleteDoc(doc(db, "tasks", taskId));
+  const taskRef = ref(db, `tasks/${taskId}`);
+  await remove(taskRef);
 };
 
 export const updateTask = async (taskId, newData) => {
-  await updateDoc(doc(db, "tasks", taskId), {
+  const taskRef = ref(db, `tasks/${taskId}`);
+  await update(taskRef, {
     task: String(newData.task),
     dueDate: newData.dueDate,
     dueTime: newData.dueTime,
-    updatedAt: new Date()
+    priority: newData.priority || 'medium',
+    category: newData.category || 'personal',
+    updatedAt: new Date().toISOString()
   });
 };
 
-// Add notification preferences to user settings
+// Update notification preferences in user settings
 export const updateUserNotificationSettings = async (userId, settings) => {
-  const userRef = doc(db, "users", userId);
-  await setDoc(userRef, { notificationSettings: settings }, { merge: true });
+  const userRef = ref(db, `users/${userId}/notificationSettings`);
+  await set(userRef, settings);
 };
 
 export const getUserNotificationSettings = async (userId) => {
-  const userRef = doc(db, "users", userId);
-  const userDoc = await getDoc(userRef);
-  return userDoc.exists() ? userDoc.data().notificationSettings : null;
+  const userRef = ref(db, `users/${userId}/notificationSettings`);
+  return new Promise((resolve) => {
+    onValue(userRef, (snapshot) => {
+      resolve(snapshot.exists() ? snapshot.val() : null);
+    }, { onlyOnce: true });
+  });
 };
 
-// Add a function to save FCM tokens to user profile
+// Save FCM tokens to user profile
 export const saveFCMToken = async (userId, token) => {
-  const userRef = doc(db, "users", userId);
-  await updateDoc(userRef, {
-    fcmTokens: arrayUnion(token)
-  });
+  const tokenRef = ref(db, `users/${userId}/fcmTokens/${token}`);
+  await set(tokenRef, true);
 };

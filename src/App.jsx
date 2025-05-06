@@ -4,18 +4,34 @@ import { auth, signUp, signIn, googleSignIn, resetPassword, logout, addTask, get
 import { onAuthStateChanged } from "firebase/auth";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { FaGoogle, FaSignOutAlt, FaPlus, FaTrash, FaEdit, FaCheck, FaTimes, FaUser, FaSearch, FaArrowLeft, FaClock, FaCalendar } from "react-icons/fa";
+import { 
+  FaGoogle, FaSignOutAlt, FaPlus, FaTrash, FaEdit, FaCheck, FaTimes, 
+  FaUser, FaSearch, FaArrowLeft, FaClock, FaCalendar, 
+  FaArrowUp, FaArrowDown, FaMinus
+} from "react-icons/fa";
 import { requestNotificationPermission, sendNotification, checkTaskDeadlines, setupFCMListener } from "./services/notificationService";
 
 function App() {
     const [user, setUser] = useState(null);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [taskInput, setTaskInput] = useState({
-        task: "",
-        dueDate: "",
-        dueTime: ""
+    const [name, setName] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [passwordError, setPasswordError] = useState("");
+    const [taskInput, setTaskInput] = useState({ 
+        task: "", 
+        dueDate: "", 
+        dueTime: "",
+        priority: "medium",
+        category: "personal" 
     });
+    const categories = [
+        { id: "personal", name: "Personal" },
+        { id: "work", name: "Work" },
+        { id: "shopping", name: "Shopping" },
+        { id: "health", name: "Health" },
+        { id: "other", name: "Other" }
+    ];
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
@@ -24,12 +40,17 @@ function App() {
         id: null,
         task: "",
         dueDate: "",
-        dueTime: ""
+        dueTime: "",
+        priority: "medium",
+        category: "personal"
     });
     const [searchTerm, setSearchTerm] = useState("");
     const [showForgotPassword, setShowForgotPassword] = useState(false);
     const [resetEmailSent, setResetEmailSent] = useState(false);
     const [notificationEnabled, setNotificationEnabled] = useState(false);
+    const [filterCategory, setFilterCategory] = useState("All");
+    const [filterPriority, setFilterPriority] = useState("All");
+    const [sortBy, setSortBy] = useState("dueDate");
     
     // Request notification permission on mount
     useEffect(() => {
@@ -129,10 +150,18 @@ function App() {
     const handleAuthSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
+        
         try {
             let result;
             if (isSignUp) {
-                result = await signUp(email, password);
+                // Validate passwords match
+                if (password !== confirmPassword) {
+                    setPasswordError("Passwords don't match");
+                    setLoading(false);
+                    return;
+                }
+                
+                result = await signUp(email, password, name);
             } else {
                 result = await signIn(email, password);
             }
@@ -199,26 +228,31 @@ function App() {
 
     // Task Handlers
     const handleAddTask = async () => {
-        // Check all required fields
-        if (taskInput.task.trim() === "") {
-            toast.warning("Please enter a task description");
-            return;
-        }
-        if (!taskInput.dueDate) {
-            toast.warning("Please select a due date");
-            return;
-        }
-        if (!taskInput.dueTime) {
-            toast.warning("Please select a due time");
-            return;
-        }
-
+        if (!taskInput.task.trim()) return;
+        
         try {
-            await addTask(user.uid, taskInput);
-            setTaskInput({ task: "", dueDate: "", dueTime: "" });
+            setLoading(true);
+            await addTask(user.uid, {
+                task: taskInput.task,
+                dueDate: taskInput.dueDate,
+                dueTime: taskInput.dueTime,
+                priority: taskInput.priority,
+                category: taskInput.category
+            });
+            
+            setTaskInput({
+                task: "",
+                dueDate: "",
+                dueTime: "",
+                priority: "medium",
+                category: "personal"
+            });
+            
             toast.success("Task added successfully!");
         } catch (error) {
             toast.error("Failed to add task: " + error.message);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -237,19 +271,32 @@ function App() {
         setEditingTask({
             id: task.id,
             task: task.task,
-            dueDate: task.dueDate || "",
-            dueTime: task.dueTime || ""
+            dueDate: task.dueDate,
+            dueTime: task.dueTime,
+            priority: task.priority || "medium",
+            category: task.category || "personal"
         });
     };
 
     const handleUpdateTask = async () => {
-        if (editingTask.task.trim() === "") {
-            toast.warning("Task cannot be empty");
-            return;
-        }
         try {
-            await updateTask(editingTask.id, editingTask);
-            setEditingTask({ id: null, task: "", dueDate: "", dueTime: "" });
+            await updateTask(editingTask.id, {
+                task: editingTask.task,
+                dueDate: editingTask.dueDate,
+                dueTime: editingTask.dueTime,
+                priority: editingTask.priority,
+                category: editingTask.category
+            });
+            
+            setEditingTask({
+                id: null,
+                task: "",
+                dueDate: "",
+                dueTime: "",
+                priority: "medium",
+                category: "personal"
+            });
+            
             toast.success("Task updated successfully!");
         } catch (error) {
             toast.error("Failed to update task: " + error.message);
@@ -299,9 +346,27 @@ function App() {
     const userTasks = tasks.filter(task => task.userId === user.uid);
 
     // Then filter those tasks based on search term
-    const filteredTasks = userTasks.filter(task => 
-        typeof task?.task === 'string' && task.task.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredTasks = userTasks
+        .filter(task => 
+            // Search term filter
+            (typeof task?.task === 'string' && task.task.toLowerCase().includes(searchTerm.toLowerCase())) &&
+            // Category filter
+            (filterCategory === "All" || task.category === filterCategory) &&
+            // Priority filter
+            (filterPriority === "All" || task.priority === filterPriority)
+        )
+        // Sorting
+        .sort((a, b) => {
+            if (sortBy === "dueDate") {
+                return new Date(`${a.dueDate} ${a.dueTime}`) - new Date(`${b.dueDate} ${b.dueTime}`);
+            } else if (sortBy === "priority") {
+                const priorityOrder = { high: 0, medium: 1, low: 2 };
+                return priorityOrder[a.priority] - priorityOrder[b.priority];
+            } else if (sortBy === "createdAt") {
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            }
+            return 0;
+        });
 
     // Get user initial for profile picture
     const getUserInitial = () => {
@@ -501,8 +566,7 @@ function App() {
                                 setShowAuthModal(false);
                                 setShowForgotPassword(false);
                                 setResetEmailSent(false);
-                                setEmail("");
-                                setPassword("");
+                                resetFormFields();
                             }}
                         >
                             &times;
@@ -557,24 +621,78 @@ function App() {
                             <>
                                 <h2>{isSignUp ? "Create Account" : "Welcome Back"}</h2>
                                 
+                                {/* Auth Modal Form */}
                                 <form onSubmit={handleAuthSubmit}>
-                                    <input 
-                                        type="email" 
-                                        placeholder="Email" 
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)} 
-                                        required
-                                        autoFocus
-                                    />
-                                    <input 
-                                        type="password" 
-                                        placeholder="Password" 
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)} 
-                                        required
-                                    />
+                                    {isSignUp && (
+                                        <div className="input-wrapper">
+                                            <input 
+                                                type="text" 
+                                                id="name"
+                                                placeholder=" " 
+                                                value={name}
+                                                onChange={(e) => setName(e.target.value)} 
+                                                required
+                                                autoFocus={isSignUp}
+                                            />
+                                            <label htmlFor="name">Full Name</label>
+                                        </div>
+                                    )}
                                     
-                                    <button type="submit" disabled={loading}>
+                                    <div className="input-wrapper">
+                                        <input 
+                                            type="email" 
+                                            id="email"
+                                            placeholder=" " 
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)} 
+                                            required
+                                            autoFocus={!isSignUp}
+                                        />
+                                        <label htmlFor="email">Email</label>
+                                    </div>
+                                    
+                                    <div className="input-wrapper">
+                                        <input 
+                                            type="password" 
+                                            id="password"
+                                            placeholder=" " 
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)} 
+                                            required
+                                            minLength="6"
+                                        />
+                                        <label htmlFor="password">Password</label>
+                                    </div>
+                                    
+                                    {isSignUp && (
+                                        <>
+                                            <div className="input-wrapper">
+                                                <input 
+                                                    type="password" 
+                                                    id="confirmPassword"
+                                                    placeholder=" " 
+                                                    value={confirmPassword}
+                                                    onChange={(e) => {
+                                                        setConfirmPassword(e.target.value);
+                                                        if (password !== e.target.value && e.target.value !== '') {
+                                                            setPasswordError("Passwords don't match");
+                                                        } else {
+                                                            setPasswordError("");
+                                                        }
+                                                    }} 
+                                                    required
+                                                    minLength="6"
+                                                />
+                                                <label htmlFor="confirmPassword">Confirm Password</label>
+                                            </div>
+                                            {passwordError && <div className="password-error">{passwordError}</div>}
+                                        </>
+                                    )}
+                                    
+                                    <button 
+                                        type="submit" 
+                                        disabled={loading || (isSignUp && password !== confirmPassword && confirmPassword !== '')}
+                                    >
                                         {loading ? "Processing..." : isSignUp ? "Sign Up" : "Sign In"}
                                     </button>
                                     
@@ -597,7 +715,10 @@ function App() {
                                             <button 
                                                 type="button"
                                                 className="toggle-auth"
-                                                onClick={() => setIsSignUp(!isSignUp)}
+                                                onClick={() => {
+                                                    setIsSignUp(!isSignUp);
+                                                    resetFormFields();
+                                                }}
                                             >
                                                 {isSignUp ? "Sign In" : "Sign Up"}
                                             </button>
@@ -634,36 +755,89 @@ function App() {
 
                         <div className="task-input-container">
                             <div className="input-group">
-                                <input 
-                                    type="text" 
+                                <label htmlFor="task-input">Task</label>
+                                <input
+                                    id="task-input"
+                                    type="text"
+                                    placeholder="What needs to be done?"
                                     value={taskInput.task}
                                     onChange={(e) => setTaskInput({...taskInput, task: e.target.value})}
-                                    placeholder="Enter a new task *" 
                                     required
                                 />
-                                <span className="required-indicator">*</span>
                             </div>
+                            
                             <div className="input-group">
-                                <input 
+                                <label htmlFor="due-date">Due Date</label>
+                                <input
+                                    id="due-date"
                                     type="date"
                                     value={taskInput.dueDate}
                                     onChange={(e) => setTaskInput({...taskInput, dueDate: e.target.value})}
-                                    required
                                 />
-                                <span className="required-indicator">*</span>
                             </div>
+                            
                             <div className="input-group">
-                                <input 
+                                <label htmlFor="due-time">Due Time</label>
+                                <input
+                                    id="due-time"
                                     type="time"
                                     value={taskInput.dueTime}
                                     onChange={(e) => setTaskInput({...taskInput, dueTime: e.target.value})}
-                                    required
                                 />
-                                <span className="required-indicator">*</span>
                             </div>
-                            <button onClick={handleAddTask} disabled={loading}>
-                                <FaPlus /> Add
-                            </button>
+                            
+                            <div className="category-section">
+                                <label htmlFor="category">Category</label>
+                                <select
+                                    id="category"
+                                    className="category-select"
+                                    value={taskInput.category}
+                                    onChange={(e) => setTaskInput({...taskInput, category: e.target.value})}
+                                >
+                                    {categories.map(category => (
+                                        <option key={category.id} value={category.id}>
+                                            {category.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            
+                            <div className="priority-section">
+                                <label>Priority</label>
+                                <div className="priority-selector">
+                                    <div 
+                                        className={`priority-option high ${taskInput.priority === 'high' ? 'selected' : ''}`}
+                                        onClick={() => setTaskInput({...taskInput, priority: 'high'})}
+                                    >
+                                        <FaArrowUp />
+                                        <span>High</span>
+                                    </div>
+                                    <div 
+                                        className={`priority-option medium ${taskInput.priority === 'medium' ? 'selected' : ''}`}
+                                        onClick={() => setTaskInput({...taskInput, priority: 'medium'})}
+                                    >
+                                        <FaMinus />
+                                        <span>Medium</span>
+                                    </div>
+                                    <div 
+                                        className={`priority-option low ${taskInput.priority === 'low' ? 'selected' : ''}`}
+                                        onClick={() => setTaskInput({...taskInput, priority: 'low'})}
+                                    >
+                                        <FaArrowDown />
+                                        <span>Low</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="add-task-button-container">
+                                <button 
+                                    className="add-task-btn" 
+                                    onClick={handleAddTask} 
+                                    disabled={loading || !taskInput.task.trim()}
+                                >
+                                    <FaPlus /> Add Task
+                                </button>
+                            </div>
                         </div>
 
                         {loading && userTasks.length === 0 ? (
@@ -674,7 +848,7 @@ function App() {
                         ) : filteredTasks.length > 0 ? (
                             <ul className="task-list">
                                 {filteredTasks.map((t) => (
-                                    <li key={t.id} className={`task-item ${t.status}`}>
+                                    <li key={t.id} className={`task-item priority-${t.priority}`}>
                                         {editingTask.id === t.id ? (
                                             <div className="edit-task">
                                                 <input
@@ -702,6 +876,40 @@ function App() {
                                                         dueTime: e.target.value
                                                     })}
                                                 />
+                                                <div className="priority-selector compact">
+                                                    <div 
+                                                        className={`priority-option high ${editingTask.priority === 'high' ? 'selected' : ''}`}
+                                                        onClick={() => setEditingTask({...editingTask, priority: 'high'})}
+                                                    >
+                                                        <FaArrowUp />
+                                                        <span>High</span>
+                                                    </div>
+                                                    <div 
+                                                        className={`priority-option medium ${editingTask.priority === 'medium' ? 'selected' : ''}`}
+                                                        onClick={() => setEditingTask({...editingTask, priority: 'medium'})}
+                                                    >
+                                                        <FaMinus />
+                                                        <span>Medium</span>
+                                                    </div>
+                                                    <div 
+                                                        className={`priority-option low ${editingTask.priority === 'low' ? 'selected' : ''}`}
+                                                        onClick={() => setEditingTask({...editingTask, priority: 'low'})}
+                                                    >
+                                                        <FaArrowDown />
+                                                        <span>Low</span>
+                                                    </div>
+                                                </div>
+                                                <select
+                                                    className="category-select"
+                                                    value={editingTask.category}
+                                                    onChange={(e) => setEditingTask({...editingTask, category: e.target.value})}
+                                                >
+                                                    {categories.map(category => (
+                                                        <option key={category.id} value={category.id}>
+                                                            {category.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
                                                 <div className="edit-buttons">
                                                     <button 
                                                         className="save-btn"
@@ -715,7 +923,9 @@ function App() {
                                                             id: null,
                                                             task: "",
                                                             dueDate: "",
-                                                            dueTime: ""
+                                                            dueTime: "",
+                                                            priority: "medium",
+                                                            category: "personal"
                                                         })}
                                                     >
                                                         <FaTimes />
@@ -725,7 +935,15 @@ function App() {
                                         ) : (
                                             <>
                                                 <div className="task-content">
-                                                    <span className="task-text">{t.task}</span>
+                                                    <div className="task-header">
+                                                        <span className={`priority-badge ${t.priority}`}>
+                                                            {t.priority}
+                                                        </span>
+                                                        <span className={`category-badge ${t.category}`}>
+                                                            {categories.find(c => c.id === t.category)?.name || t.category}
+                                                        </span>
+                                                        <span className="task-text">{t.task}</span>
+                                                    </div>
                                                     {(t.dueDate || t.dueTime) && (
                                                         <div className="task-deadline">
                                                             {t.dueDate && (
